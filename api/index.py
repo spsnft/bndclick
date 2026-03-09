@@ -4,7 +4,7 @@ import json
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+TOKEN = os.getenv("8624782177:AAGOBOWbIeQeRMpesjejyBmISug5TaY4yEQ")
 
 async def handle_start(bot, chat_id):
     text = "BND Delivery Phuket 🌴\n\nНапишите нам, мы ответим быстро!"
