@@ -19,7 +19,7 @@ def handle_start(chat_id):
     text_pin = "**🔥Всегда актуальный бот**"
     keyboard_pin = {
         "inline_keyboard": [
-            [{"text": "👤 Бот", "url": "https://bndeliveryphuket.click/chat"}]
+            [{"text": "👤 Бот", "url": "https://t.me/bndhome_bot"}]
         ]
     }
     
