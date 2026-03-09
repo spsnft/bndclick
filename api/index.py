@@ -1,12 +1,13 @@
 import os
-import asyncio
 import json
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application
+import asyncio
+from http.server import BaseHTTPRequestHandler
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
-TOKEN = os.getenv("8624782177:AAGOBOWbIeQeRMpesjejyBmISug5TaY4yEQ")
+TOKEN = os.getenv("TELEGRAM_TOKEN")
+bot = Bot(token=TOKEN)
 
-async def handle_start(bot, chat_id):
+async def send_start(chat_id):
     text = "BND Delivery Phuket 🌴\n\nНапишите нам, мы ответим быстро!"
     keyboard = [
         [InlineKeyboardButton("🥥 Каталог", url="https://bndeliveryphuket.click/info"),
@@ -16,17 +17,25 @@ async def handle_start(bot, chat_id):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Отправляем и сразу закрепляем
+    # Отправка
     msg = await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
-    await bot.pin_chat_message(chat_id=chat_id, message_id=msg.message_id)
+    # Авто-закреп
+    try:
+        await bot.pin_chat_message(chat_id=chat_id, message_id=msg.message_id)
+    except:
+        pass
 
-async def handler(request):
-    if request.method == "POST":
-        bot = Bot(token=TOKEN)
-        data = json.loads(request.body)
-        update = Update.de_json(data, bot)
-        
-        if update.message and update.message.text == "/start":
-            await handle_start(bot, update.message.chat_id)
-            
-    return {"statusCode": 200, "body": "ok"}
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        update = json.loads(post_data.decode('utf-8'))
+
+        if "message" in update and update["message"].get("text") == "/start":
+            chat_id = update["message"]["chat"]["id"]
+            asyncio.run(send_start(chat_id))
+
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'ok')
