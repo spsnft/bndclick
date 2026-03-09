@@ -16,10 +16,10 @@ def send_telegram_request(method, payload):
 
 def handle_start(chat_id):
     # 1. ПЕРВОЕ СООБЩЕНИЕ (Для закрепа)
-    text_pin = "**ВСЕГДА АКТУАЛЬНЫЙ БОТ**"
+    text_pin = "**🔥Всегда актуальный бот**"
     keyboard_pin = {
         "inline_keyboard": [
-            [{"text": "👤 Оператор", "url": "https://bndeliveryphuket.click/chat"}]
+            [{"text": "👤 Бот", "url": "https://bndeliveryphuket.click/chat"}]
         ]
     }
     
