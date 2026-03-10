@@ -1,9 +1,43 @@
 import os
 import json
 import requests
+import gspread
+from google.oauth2.service_account import Credentials
 from http.server import BaseHTTPRequestHandler
+from datetime import datetime
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+
+def log_user(user):
+    try:
+        if not GOOGLE_CREDENTIALS or not SPREADSHEET_ID:
+            return
+        
+        info = json.loads(GOOGLE_CREDENTIALS)
+        creds = Credentials.from_service_account_info(
+            info, 
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        )
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SPREADSHEET_ID).sheet1
+        
+        user_id = str(user.get("id"))
+        
+        # Проверяем наличие юзера в первой колонке
+        existing_ids = sheet.col_values(1)
+        if user_id not in existing_ids:
+            row = [
+                user_id,
+                user.get("first_name", ""),
+                user.get("last_name", ""),
+                "@" + user.get("username", "") if user.get("username") else "",
+                datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            ]
+            sheet.append_row(row)
+    except Exception as e:
+        print(f"Google Sheets Error: {e}")
 
 def send_telegram_request(method, payload):
     url = f"https://api.telegram.org/bot{TOKEN}/{method}"
@@ -14,7 +48,10 @@ def send_telegram_request(method, payload):
         print(f"Request error: {e}")
         return None
 
-def handle_start(chat_id):
+def handle_start(chat_id, user):
+    # Логируем пользователя в таблицу
+    log_user(user)
+
     # 1. ПЕРВОЕ СООБЩЕНИЕ (Для закрепа)
     text_pin = "**🔥Всегда актуальный бот**"
     keyboard_pin = {
@@ -82,7 +119,8 @@ class handler(BaseHTTPRequestHandler):
             if "message" in update:
                 msg = update["message"]
                 if msg.get("text") == "/start":
-                    handle_start(msg["chat"]["id"])
+                    # Передаем и ID чата, и данные пользователя для логирования
+                    handle_start(msg["chat"]["id"], msg["from"])
         except Exception as e:
             print(f"Update error: {e}")
 
