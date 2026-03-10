@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime
 
+# Переменные окружения из Vercel
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
@@ -14,10 +15,21 @@ def log_user_to_sheet(user):
     print(f"DEBUG: Starting log process for user {user.get('id')}")
     try:
         if not GOOGLE_CREDENTIALS:
-            print("DEBUG ERROR: GOOGLE_CREDENTIALS is missing in Environment Variables")
+            print("DEBUG ERROR: GOOGLE_CREDENTIALS is missing")
             return
         
-        info = json.loads(GOOGLE_CREDENTIALS)
+        # ЧИНИМ JSON: Убираем возможные косяки экранирования Vercel
+        raw_creds = GOOGLE_CREDENTIALS.strip()
+        # Заменяем двойные бэкслеши на одинарные, если они появились
+        if "\\\\n" in raw_creds:
+            raw_creds = raw_creds.replace("\\\\n", "\\n")
+        
+        info = json.loads(raw_creds)
+        
+        # Исправляем переносы строк в самом ключе
+        if "private_key" in info:
+            info["private_key"] = info["private_key"].replace("\\n", "\n")
+
         creds = Credentials.from_service_account_info(
             info, 
             scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -40,6 +52,7 @@ def log_user_to_sheet(user):
             print("DEBUG SUCCESS: Row added to Google Sheet")
         else:
             print("DEBUG INFO: User already in sheet")
+            
     except Exception as e:
         print(f"DEBUG CRITICAL ERROR: {str(e)}")
 
@@ -54,13 +67,13 @@ class handler(BaseHTTPRequestHandler):
                 chat_id = update["message"]["chat"]["id"]
                 user_data = update["message"]["from"]
                 
-                # 1. Логируем (теперь внутри, чтобы видеть ошибки)
+                # 1. Запись в таблицу
                 log_user_to_sheet(user_data)
                 
-                # 2. Шлем сообщения в ТГ (твой актуальный вариант)
+                # 2. Отправка сообщений в Telegram
                 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
                 
-                # Сообщение 1 (Закреп)
+                # Пост 1: Закреп
                 payload_pin = {
                     "chat_id": chat_id,
                     "text": "**🔥Всегда актуальный бот**",
@@ -68,14 +81,22 @@ class handler(BaseHTTPRequestHandler):
                     "parse_mode": "Markdown"
                 }
                 res = requests.post(url, json=payload_pin).json()
+                
                 if res.get("ok"):
                     requests.post(f"https://api.telegram.org/bot{TOKEN}/pinChatMessage", 
                                   json={"chat_id": chat_id, "message_id": res["result"]["message_id"], "disable_notification": True})
 
-                # Сообщение 2 (Меню)
+                # Пост 2: Меню
+                text_main = (
+                    "**БoшкyHaДoрoжкy.Phuket 🌴**\n\n"
+                    "Пишите оператору - мы отвечаем максимально быстро!\n\n"
+                    "Используйте кнопки ниже для быстрых переходов ⬇️\n"
+                    "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\n"
+                    "Спасибо, что выбираете нас и остаетесь на сязи!❤️"
+                )
                 payload_main = {
                     "chat_id": chat_id,
-                    "text": "**БoшкyHaДoрoжкy.Phuket 🌴**\n\nПишите оператору - мы отвечаем максимально быстро!\n\nИспользуйте кнопки ниже для быстрых переходов ⬇️\nВ случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\nСпасибо, что выбираете нас и остаетесь на сязи!❤️",
+                    "text": text_main,
                     "reply_markup": {
                         "inline_keyboard": [
                             [{"text": "🌴 Каталог", "url": "https://bndeliveryphuket.click/info"}, {"text": "👤 Оператор", "url": "https://bndeliveryphuket.click/chat"}],
