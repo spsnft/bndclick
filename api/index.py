@@ -6,27 +6,39 @@ from google.oauth2.service_account import Credentials
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime
 
+# Подтягиваем переменные из настроек Vercel
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 
 def log_user(user):
     try:
-        if not GOOGLE_CREDENTIALS or not SPREADSHEET_ID:
+        if not GOOGLE_CREDENTIALS:
+            print("ERROR: GOOGLE_CREDENTIALS variable is empty")
+            return
+        if not SPREADSHEET_ID:
+            print("ERROR: SPREADSHEET_ID variable is empty")
             return
         
+        # Авторизация в Google
         info = json.loads(GOOGLE_CREDENTIALS)
         creds = Credentials.from_service_account_info(
             info, 
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive"
+            ]
         )
         client = gspread.authorize(creds)
+        
+        # Открываем таблицу
         sheet = client.open_by_key(SPREADSHEET_ID).sheet1
         
         user_id = str(user.get("id"))
         
-        # Проверяем наличие юзера в первой колонке
+        # Получаем все ID из первой колонки для проверки на дубликаты
         existing_ids = sheet.col_values(1)
+        
         if user_id not in existing_ids:
             row = [
                 user_id,
@@ -36,6 +48,10 @@ def log_user(user):
                 datetime.now().strftime("%d.%m.%Y %H:%M:%S")
             ]
             sheet.append_row(row)
+            print(f"SUCCESS: User {user_id} added to sheet")
+        else:
+            print(f"INFO: User {user_id} already exists in sheet")
+            
     except Exception as e:
         print(f"Google Sheets Error: {e}")
 
@@ -45,11 +61,11 @@ def send_telegram_request(method, payload):
         res = requests.post(url, json=payload, timeout=10)
         return res.json()
     except Exception as e:
-        print(f"Request error: {e}")
+        print(f"Telegram Request Error: {e}")
         return None
 
 def handle_start(chat_id, user):
-    # Логируем пользователя в таблицу
+    # Пытаемся записать данные в таблицу
     log_user(user)
 
     # 1. ПЕРВОЕ СООБЩЕНИЕ (Для закрепа)
@@ -60,16 +76,13 @@ def handle_start(chat_id, user):
         ]
     }
     
-    payload_pin = {
+    res_pin = send_telegram_request("sendMessage", {
         "chat_id": chat_id,
         "text": text_pin,
         "reply_markup": keyboard_pin,
         "parse_mode": "Markdown"
-    }
+    })
     
-    res_pin = send_telegram_request("sendMessage", payload_pin)
-    
-    # Закрепляем это сообщение
     if res_pin and res_pin.get("ok"):
         msg_id = res_pin["result"]["message_id"]
         send_telegram_request("pinChatMessage", {
@@ -100,14 +113,12 @@ def handle_start(chat_id, user):
         ]
     }
     
-    payload_main = {
+    send_telegram_request("sendMessage", {
         "chat_id": chat_id,
         "text": text_main,
         "reply_markup": keyboard_main,
         "parse_mode": "Markdown"
-    }
-    
-    send_telegram_request("sendMessage", payload_main)
+    })
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -119,10 +130,9 @@ class handler(BaseHTTPRequestHandler):
             if "message" in update:
                 msg = update["message"]
                 if msg.get("text") == "/start":
-                    # Передаем и ID чата, и данные пользователя для логирования
                     handle_start(msg["chat"]["id"], msg["from"])
         except Exception as e:
-            print(f"Update error: {e}")
+            print(f"Update processing error: {e}")
 
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
