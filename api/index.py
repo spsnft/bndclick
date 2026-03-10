@@ -1,33 +1,30 @@
 import os
 import json
+import base64
 import requests
 import gspread
 from google.oauth2.service_account import Credentials
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime
 
+# Константы из окружения
 TOKEN = os.getenv("TELEGRAM_TOKEN")
-GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+# Ожидаем здесь Base64 строку
+GOOGLE_CREDS_B64 = os.getenv("GOOGLE_CREDENTIALS")
 
 def log_user_to_sheet(user):
     print(f"!!! LOGGING STARTED FOR: {user.get('id')} !!!")
     try:
-        if not GOOGLE_CREDENTIALS:
-            print("!!! ERROR: GOOGLE_CREDENTIALS IS EMPTY !!!")
+        if not GOOGLE_CREDS_B64:
+            print("!!! ERROR: GOOGLE_CREDENTIALS variable is empty !!!")
             return
+
+        # Декодируем Base64 в JSON
+        decoded_data = base64.b64decode(GOOGLE_CREDS_B64).decode('utf-8')
+        info = json.loads(decoded_data)
         
-        # Чистим строку от возможных косяков Vercel
-        clean_creds = GOOGLE_CREDENTIALS.strip()
-        
-        # Пытаемся распарсить JSON
-        try:
-            info = json.loads(clean_creds)
-        except:
-            # Если не вышло, пробуем пофиксить переносы строк (частая беда Vercel)
-            info = json.loads(clean_creds.replace("\\n", "\n"))
-        
-        # Фиксим сам приватный ключ
+        # Исправляем переносы строк в ключе, если они превратились в текст
         if "private_key" in info:
             info["private_key"] = info["private_key"].replace("\\n", "\n")
 
@@ -52,8 +49,7 @@ def log_user_to_sheet(user):
             sheet.append_row(row)
             print("!!! SUCCESS: DATA WRITTEN TO SHEET !!!")
         else:
-            print("!!! INFO: USER ALREADY EXISTS IN SHEET !!!")
-            
+            print("!!! INFO: USER ALREADY IN SHEET !!!")
     except Exception as e:
         print(f"!!! SHEET ERROR: {str(e)} !!!")
 
@@ -71,16 +67,42 @@ class handler(BaseHTTPRequestHandler):
                 log_user_to_sheet(user_from)
                 
                 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-                # Пост 1
-                p1 = {"chat_id": chat_id, "text": "**🔥Всегда актуальный бот**", "reply_markup": {"inline_keyboard": [[{"text": "👤 Бот", "url": "https://t.me/bndhome_bot"}]]}, "parse_mode": "Markdown"}
-                r = requests.post(url, json=p1).json()
-                if r.get("ok"):
-                    requests.post(f"https://api.telegram.org/bot{TOKEN}/pinChatMessage", json={"chat_id": chat_id, "message_id": r["result"]["message_id"], "disable_notification": True})
-                # Пост 2
-                p2 = {"chat_id": chat_id, "text": "**БoшкyHaДoрoжкy.Phuket 🌴**\n\nПишите оператору - мы отвечаем максимально быстро!\n\nИспользуйте кнопки ниже для быстрых переходов ⬇️\nВ случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\nСпасибо, что выбираете нас и остаетесь на сязи!❤️", "reply_markup": {"inline_keyboard": [[{"text": "🌴 Каталог", "url": "https://bndeliveryphuket.click/info"}, {"text": "👤 Оператор", "url": "https://bndeliveryphuket.click/chat"}], [{"text": "📸 Instagram", "url": "https://bndeliveryphuket.click/insta"}, {"text": "🟢 WhatsApp", "url": "https://bndeliveryphuket.click/wa"}]]}, "parse_mode": "Markdown"}
+                
+                # Пост 1 (Закреп)
+                p1 = {
+                    "chat_id": chat_id, 
+                    "text": "**🔥Всегда актуальный бот**", 
+                    "reply_markup": {"inline_keyboard": [[{"text": "👤 Бот", "url": "https://t.me/bndhome_bot"}]]}, 
+                    "parse_mode": "Markdown"
+                }
+                res = requests.post(url, json=p1).json()
+                if res.get("ok"):
+                    requests.post(f"https://api.telegram.org/bot{TOKEN}/pinChatMessage", 
+                                  json={"chat_id": chat_id, "message_id": res["result"]["message_id"], "disable_notification": True})
+                
+                # Пост 2 (Меню)
+                text_main = (
+                    "**БoшкyHaДoрoжкy.Phuket 🌴**\n\n"
+                    "Пишите оператору - мы отвечаем максимально быстро!\n\n"
+                    "Используйте кнопки ниже для быстрых переходов ⬇️\n"
+                    "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\n"
+                    "Спасибо, что выбираете нас и остаетесь на связи!❤️"
+                )
+                p2 = {
+                    "chat_id": chat_id, 
+                    "text": text_main, 
+                    "reply_markup": {
+                        "inline_keyboard": [
+                            [{"text": "🌴 Каталог", "url": "https://bndeliveryphuket.click/info"}, {"text": "👤 Оператор", "url": "https://bndeliveryphuket.click/chat"}],
+                            [{"text": "📸 Instagram", "url": "https://bndeliveryphuket.click/insta"}, {"text": "🟢 WhatsApp", "url": "https://bndeliveryphuket.click/wa"}]
+                        ]
+                    }, 
+                    "parse_mode": "Markdown"
+                }
                 requests.post(url, json=p2)
         except Exception as e:
             print(f"!!! GLOBAL ERROR: {e} !!!")
+        
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok')
