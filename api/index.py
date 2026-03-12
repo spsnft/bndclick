@@ -58,7 +58,7 @@ class handler(BaseHTTPRequestHandler):
                 if text == "/start":
                     log_user_to_sheet(user)
                     # Пост 1 (Закреп)
-                    res = send_msg(chat_id, "**🔥Всегда актуальный бот**", [[{"text": "👤 Бот", "url": URL_SELF}]])
+                    res = send_msg(chat_id, "**🔥Всегда актуальный бот**", [[{"text": "👤 Актуальный бот", "url": URL_SELF}]])
                     if res.get("ok"):
                         requests.post(f"https://api.telegram.org/bot{TOKEN}/pinChatMessage", json={"chat_id": chat_id, "message_id": res["result"]["message_id"], "disable_notification": True})
                     # Пост 2 (Меню)
@@ -66,7 +66,8 @@ class handler(BaseHTTPRequestHandler):
                         "**БoшкyHaДoрoжкy.Phuket 🌴**\n\n"
                         "Пишите оператору - мы отвечаем максимально быстро!\n\n"
                         "Используйте кнопки ниже для быстрых переходов ⬇️\n"
-                        "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\n"
+                        "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n"
+                        "А если заблокируют этого бота - жмите на кнопку "👤 Актуальный бот" в закреплённом сообщении - она всегда будет работать👌\n\n"
                         "Спасибо, что выбираете нас и остаетесь на связи!❤️"
                     )
                     kb = [[{"text": "🌴 Каталог", "url": URL_CATALOG}, {"text": "👤 Оператор", "url": URL_OPERATOR}],
