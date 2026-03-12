@@ -9,7 +9,7 @@ from datetime import datetime
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
-GOOGLE_CREDS_B64 = os.getenv("GOOGLE_CREDENTIALS")
+GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 # Ссылки выносим в константы для удобства
 URL_CATALOG = "https://bndeliveryphuket.click/info"
@@ -20,8 +20,8 @@ URL_SELF = "https://bndeliveryphuket.click"
 
 def log_user_to_sheet(user):
     try:
-        if not GOOGLE_CREDS_B64: return
-        decoded_data = base64.b64decode(GOOGLE_CREDS_B64).decode('utf-8')
+        if not GOOGLE_CREDENTIALS: return
+        decoded_data = base64.b64decode(GOOGLE_CREDENTIALS).decode('utf-8')
         info = json.loads(decoded_data)
         if "private_key" in info:
             info["private_key"] = info["private_key"].replace("\\n", "\n")
@@ -57,17 +57,20 @@ class handler(BaseHTTPRequestHandler):
 
                 if text == "/start":
                     log_user_to_sheet(user)
+                    
                     # Пост 1 (Закреп)
                     res = send_msg(chat_id, "**🔥Всегда актуальный бот**", [[{"text": "👤 Актуальный бот", "url": URL_SELF}]])
                     if res.get("ok"):
                         requests.post(f"https://api.telegram.org/bot{TOKEN}/pinChatMessage", json={"chat_id": chat_id, "message_id": res["result"]["message_id"], "disable_notification": True})
+                    
                     # Пост 2 (Меню)
+                    # ВНИМАНИЕ: Кавычки внутри текста теперь одинарные (' '), чтобы не ломать код
                     main_text = (
                         "**БoшкyHaДoрoжкy.Phuket 🌴**\n\n"
                         "Пишите оператору - мы отвечаем максимально быстро!\n\n"
                         "Используйте кнопки ниже для быстрых переходов ⬇️\n"
-                        "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n"
-                        "А если заблокируют этого бота - жмите на кнопку "👤 Актуальный бот" в закреплённом сообщении - она всегда будет работать👌\n\n"
+                        "В случае блокировки любого ресурса - мы обновим ссылку и пришлем оповещение в этот бот😊\n\n"
+                        "А если заблокируют этого бота - жмите на кнопку '👤 Актуальный бот' в закреплённом сообщении - она всегда будет работать👌\n\n"
                         "Спасибо, что выбираете нас и остаетесь на связи!❤️"
                     )
                     kb = [[{"text": "🌴 Каталог", "url": URL_CATALOG}, {"text": "👤 Оператор", "url": URL_OPERATOR}],
