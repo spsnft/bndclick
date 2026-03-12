@@ -16,7 +16,7 @@ URL_CATALOG = "https://bndeliveryphuket.click/info"
 URL_OPERATOR = "https://bndeliveryphuket.click/chat"
 URL_INSTA = "https://bndeliveryphuket.click/insta"
 URL_WA = "https://bndeliveryphuket.click/wa"
-URL_SELF = "https://t.me/bndhome_bot"
+URL_SELF = "https://bndeliveryphuket.click"
 
 def log_user_to_sheet(user):
     try:
