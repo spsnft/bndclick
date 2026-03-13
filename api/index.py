@@ -13,9 +13,9 @@ SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 # Ссылки (изменяй их тут при необходимости)
-URL_CATALOG = "https://bndeliveryphuket.click/info"
+URL_CATALOG = "https://bnd.delivery"
 URL_OPERATOR = "https://bndeliveryphuket.click/chat"
-URL_INSTA = "https://bndeliveryphuket.click/insta"
+URL_INSTA = "https://www.instagram.com/boshkunadoroshku"
 URL_WA = "https://bndeliveryphuket.click/wa"
 URL_SELF = "https://bndeliveryphuket.click"
 
