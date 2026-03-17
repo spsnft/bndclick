@@ -14,7 +14,7 @@ GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
 # Ссылки (изменяй их тут при необходимости)
 URL_CATALOG = "https://bnd.delivery"
-URL_OPERATOR = "https://bndeliveryphuket.click/chat"
+URL_OPERATOR = "https://t.me/bshk_phuket"
 URL_INSTA = "https://www.instagram.com/boshkunadoroshku"
 URL_WA = "https://bndeliveryphuket.click/wa"
 URL_SELF = "https://bndeliveryphuket.click"
