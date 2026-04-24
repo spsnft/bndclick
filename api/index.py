@@ -24,18 +24,25 @@ URL_INSTA = "https://www.instagram.com/boshkunadoroshku"
 URL_WA = "https://bndeliveryphuket.click/wa"
 URL_SELF = "https://bndeliveryphuket.click"
 
-def get_sheet():
+def get_ss():
     decoded_data = base64.b64decode(GOOGLE_CREDENTIALS).decode('utf-8')
     info = json.loads(decoded_data)
     if "private_key" in info:
         info["private_key"] = info["private_key"].replace("\\n", "\n")
     creds = Credentials.from_service_account_info(info, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-    client = gspread.authorize(creds)
-    return client.open_by_key(SPREADSHEET_ID).sheet1
+    return gspread.authorize(creds).open_by_key(SPREADSHEET_ID)
+
+def log_broadcast(b_type, text, success, errors, duration):
+    try:
+        ss = get_ss()
+        sheet = ss.worksheet("Broadcasts") # Важно, чтобы лист назывался именно так
+        row = [datetime.now().strftime("%d.%m.%Y %H:%M:%S"), b_type, text[:100], success, errors, round(duration, 2)]
+        sheet.append_row(row)
+    except Exception as e: print(f"!!! LOG ERROR: {e} !!!")
 
 def log_user_to_sheet(user):
     try:
-        sheet = get_sheet()
+        sheet = get_ss().sheet1
         user_id = str(user.get("id"))
         existing_ids = sheet.col_values(1)
         if user_id not in existing_ids:
@@ -69,14 +76,17 @@ class handler(BaseHTTPRequestHandler):
                 # 1. ТЕСТОВАЯ РАССЫЛКА (На твои 2 ID)
                 if text.startswith("/broadcast "):
                     if user_id == ADMIN_ID:
+                        start_time = time.time()
                         broadcast_text = text.replace("/broadcast ", "")
                         count = 0
+                        errs = 0
                         for uid in TEST_USERS:
-                            try:
-                                send_msg(uid, broadcast_text)
-                                count += 1
-                                time.sleep(0.3)
-                            except: continue
+                            res = send_msg(uid, broadcast_text)
+                            if res.get("ok"): count += 1
+                            else: errs += 1
+                            time.sleep(0.3)
+                        
+                        log_broadcast("TEST", broadcast_text, count, errs, time.time() - start_time)
                         send_msg(ADMIN_ID, f"✅ Рассылка завершена. Отправлено: {count}")
                     else:
                         send_msg(chat_id, "❌ Доступ запрещен.")
@@ -84,17 +94,24 @@ class handler(BaseHTTPRequestHandler):
                 # 2. РЕАЛЬНАЯ РАССЫЛКА ПО ВСЕЙ ТАБЛИЦЕ
                 elif text.startswith("/finalbroadcast "):
                     if user_id == ADMIN_ID:
+                        start_time = time.time()
                         final_text = text.replace("/finalbroadcast ", "")
-                        sheet = get_sheet()
-                        all_ids = sheet.col_values(1)[1:] # Пропускаем заголовок
+                        sheet = get_ss().sheet1
+                        all_ids = sheet.col_values(1)[1:] 
                         
                         count = 0
+                        errs = 0
                         for uid in all_ids:
                             try:
-                                send_msg(uid, final_text)
-                                count += 1
+                                res = send_msg(uid, final_text)
+                                if res.get("ok"): count += 1
+                                else: errs += 1
                                 time.sleep(0.3) 
-                            except: continue
+                            except: 
+                                errs += 1
+                                continue
+                        
+                        log_broadcast("FINAL", final_text, count, errs, time.time() - start_time)
                         send_msg(ADMIN_ID, f"✅ Рассылка завершена. Отправлено: {count}")
                     else:
                         send_msg(chat_id, "❌ Доступ запрещен.")
