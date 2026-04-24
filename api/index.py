@@ -3,7 +3,7 @@ import json
 import base64
 import requests
 import gspread
-import time
+import time # Нужно для пауз
 from google.oauth2.service_account import Credentials
 from http.server import BaseHTTPRequestHandler
 from datetime import datetime
@@ -13,14 +13,13 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS")
 
-# Твой ID для проверки прав
+# ВСТАВЬ СЮДА СВОЙ ID (цифрами)
 ADMIN_ID = 8699481380  
-# Список ID для ТЕСТОВОЙ рассылки (/broadcast)
-TEST_USERS = [8699481380, 91937473]
+TEST_USERS = [8699481380, 91937473] # Список для тестовой рассылки
 
 # Ссылки
 URL_CATALOG = "https://bnd.delivery"
-URL_OPERATOR = "https://bndeliveryphuket.click/chat"
+URL_OPERATOR = "https://t.me/bshk_phuket"
 URL_INSTA = "https://www.instagram.com/boshkunadoroshku"
 URL_WA = "https://bndeliveryphuket.click/wa"
 URL_SELF = "https://bndeliveryphuket.click"
@@ -52,14 +51,13 @@ def send_msg(chat_id, text, keyboard=None):
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        
-        # СРАЗУ отвечаем Telegram 200 OK, чтобы он не слал повторы при долгих циклах
+        # СРАЗУ отвечаем OK, чтобы Telegram не присылал повторы
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok')
 
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
         try:
             update = json.loads(post_data.decode('utf-8'))
             if "message" in update:
@@ -68,22 +66,22 @@ class handler(BaseHTTPRequestHandler):
                 text = msg.get("text", "")
                 user_id = msg["from"]["id"]
 
-                # 1. ТЕСТОВАЯ РАССЫЛКА (Только на 2 ID)
+                # 1. ТЕСТОВАЯ РАССЫЛКА (На твои 2 ID)
                 if text.startswith("/broadcast "):
                     if user_id == ADMIN_ID:
                         broadcast_text = text.replace("/broadcast ", "")
                         count = 0
                         for uid in TEST_USERS:
                             try:
-                                send_msg(uid, f"🛠 **ТЕСТОВЫЙ ЗАПУСК:**\n\n{broadcast_text}")
+                                send_msg(uid, broadcast_text)
                                 count += 1
                                 time.sleep(0.3)
                             except: continue
-                        send_msg(ADMIN_ID, f"✅ Тест завершен. Получили: {count} чел.")
+                        send_msg(ADMIN_ID, f"✅ Рассылка завершена. Отправлено: {count}")
                     else:
                         send_msg(chat_id, "❌ Доступ запрещен.")
 
-                # 2. ЧИСТОВАЯ РАССЫЛКА (По всей таблице)
+                # 2. РЕАЛЬНАЯ РАССЫЛКА ПО ВСЕЙ ТАБЛИЦЕ
                 elif text.startswith("/finalbroadcast "):
                     if user_id == ADMIN_ID:
                         final_text = text.replace("/finalbroadcast ", "")
@@ -95,9 +93,9 @@ class handler(BaseHTTPRequestHandler):
                             try:
                                 send_msg(uid, final_text)
                                 count += 1
-                                time.sleep(0.3) # Чуть медленнее для стабильности
+                                time.sleep(0.3) 
                             except: continue
-                        send_msg(ADMIN_ID, f"🚀 ЧИСТОВАЯ РАССЫЛКА ОКОНЧЕНА.\nОтправлено: {count}")
+                        send_msg(ADMIN_ID, f"✅ Рассылка завершена. Отправлено: {count}")
                     else:
                         send_msg(chat_id, "❌ Доступ запрещен.")
 
@@ -109,14 +107,15 @@ class handler(BaseHTTPRequestHandler):
                     main_text = (
                         "**БoшкyHaДoрoжкy.Phuket 🌴**\n"
                         "Напишите оператору — мы ответим максимально быстро!\n\n"
+                        "> В случае блокировки любого ресурса — мы обновим ссылку и пришлем оповещение в этот бот 😊\n\n"
+                        "> А если заблокируют этого бота — жмите на кнопку '👤 Актуальный бот' в закрепе\n\n"
                         "Используйте кнопки ниже ⬇️⬇️⬇️"
                     )
                     kb = [[{"text": "🌴 Каталог", "url": URL_CATALOG}, {"text": "👤 Оператор", "url": URL_OPERATOR}],
                           [{"text": "📸 Instagram", "url": URL_INSTA}, {"text": "🟢 WhatsApp", "url": URL_WA}]]
                     send_msg(chat_id, main_text, kb)
 
-        except Exception as e: 
-            print(f"!!! ERROR: {e} !!!")
+        except Exception as e: print(f"!!! ERROR: {e} !!!")
 
     def do_GET(self):
         self.send_response(200)
